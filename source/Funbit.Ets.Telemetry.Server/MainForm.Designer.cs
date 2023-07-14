@@ -54,9 +54,15 @@
             this.helpToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.donateToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.aboutToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.groupBox2 = new System.Windows.Forms.GroupBox();
+            this.txt_DriverId = new System.Windows.Forms.TextBox();
+            this.label1 = new System.Windows.Forms.Label();
+            this.lbl_db_status = new System.Windows.Forms.Label();
+            this.check_saveToDb = new System.Windows.Forms.CheckBox();
             this.contextMenuStrip.SuspendLayout();
             this.groupBox1.SuspendLayout();
             this.menuStrip1.SuspendLayout();
+            this.groupBox2.SuspendLayout();
             this.SuspendLayout();
             // 
             // trayIcon
@@ -255,7 +261,7 @@
             // uninstallToolStripMenuItem
             // 
             this.uninstallToolStripMenuItem.Name = "uninstallToolStripMenuItem";
-            this.uninstallToolStripMenuItem.Size = new System.Drawing.Size(152, 22);
+            this.uninstallToolStripMenuItem.Size = new System.Drawing.Size(120, 22);
             this.uninstallToolStripMenuItem.Text = "Uninstall";
             this.uninstallToolStripMenuItem.Click += new System.EventHandler(this.uninstallToolStripMenuItem_Click);
             // 
@@ -272,30 +278,85 @@
             // helpToolStripMenuItem
             // 
             this.helpToolStripMenuItem.Name = "helpToolStripMenuItem";
-            this.helpToolStripMenuItem.Size = new System.Drawing.Size(152, 22);
+            this.helpToolStripMenuItem.Size = new System.Drawing.Size(112, 22);
             this.helpToolStripMenuItem.Text = "Help";
             this.helpToolStripMenuItem.Click += new System.EventHandler(this.helpToolStripMenuItem_Click);
             // 
             // donateToolStripMenuItem
             // 
             this.donateToolStripMenuItem.Name = "donateToolStripMenuItem";
-            this.donateToolStripMenuItem.Size = new System.Drawing.Size(152, 22);
+            this.donateToolStripMenuItem.Size = new System.Drawing.Size(112, 22);
             this.donateToolStripMenuItem.Text = "Donate";
             this.donateToolStripMenuItem.Click += new System.EventHandler(this.donateToolStripMenuItem_Click);
             // 
             // aboutToolStripMenuItem
             // 
             this.aboutToolStripMenuItem.Name = "aboutToolStripMenuItem";
-            this.aboutToolStripMenuItem.Size = new System.Drawing.Size(152, 22);
+            this.aboutToolStripMenuItem.Size = new System.Drawing.Size(112, 22);
             this.aboutToolStripMenuItem.Text = "About";
             this.aboutToolStripMenuItem.Visible = false;
             this.aboutToolStripMenuItem.Click += new System.EventHandler(this.aboutToolStripMenuItem_Click);
+            // 
+            // groupBox2
+            // 
+            this.groupBox2.Controls.Add(this.check_saveToDb);
+            this.groupBox2.Controls.Add(this.lbl_db_status);
+            this.groupBox2.Controls.Add(this.label1);
+            this.groupBox2.Controls.Add(this.txt_DriverId);
+            this.groupBox2.Location = new System.Drawing.Point(12, 272);
+            this.groupBox2.Name = "groupBox2";
+            this.groupBox2.Size = new System.Drawing.Size(527, 174);
+            this.groupBox2.TabIndex = 13;
+            this.groupBox2.TabStop = false;
+            this.groupBox2.Text = "Save Telemetry";
+            this.groupBox2.UseWaitCursor = true;
+            // 
+            // txt_DriverId
+            // 
+            this.txt_DriverId.Location = new System.Drawing.Point(144, 52);
+            this.txt_DriverId.Name = "txt_DriverId";
+            this.txt_DriverId.Size = new System.Drawing.Size(185, 20);
+            this.txt_DriverId.TabIndex = 0;
+            // 
+            // label1
+            // 
+            this.label1.AutoSize = true;
+            this.label1.Location = new System.Drawing.Point(85, 55);
+            this.label1.Name = "label1";
+            this.label1.Size = new System.Drawing.Size(52, 13);
+            this.label1.TabIndex = 1;
+            this.label1.Text = "Driver ID:";
+            this.label1.Click += new System.EventHandler(this.label1_Click);
+            // 
+            // lbl_db_status
+            // 
+            this.lbl_db_status.AutoSize = true;
+            this.lbl_db_status.ForeColor = System.Drawing.Color.Red;
+            this.lbl_db_status.Location = new System.Drawing.Point(322, 30);
+            this.lbl_db_status.Name = "lbl_db_status";
+            this.lbl_db_status.Size = new System.Drawing.Size(71, 13);
+            this.lbl_db_status.TabIndex = 22;
+            this.lbl_db_status.Text = "DB_STATUS";
+            // 
+            // check_saveToDb
+            // 
+            this.check_saveToDb.AutoSize = true;
+            this.check_saveToDb.CheckAlign = System.Drawing.ContentAlignment.MiddleRight;
+            this.check_saveToDb.Checked = true;
+            this.check_saveToDb.CheckState = System.Windows.Forms.CheckState.Checked;
+            this.check_saveToDb.Location = new System.Drawing.Point(78, 26);
+            this.check_saveToDb.Name = "check_saveToDb";
+            this.check_saveToDb.Size = new System.Drawing.Size(81, 17);
+            this.check_saveToDb.TabIndex = 23;
+            this.check_saveToDb.Text = "Save to DB";
+            this.check_saveToDb.UseVisualStyleBackColor = true;
             // 
             // MainForm
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(552, 281);
+            this.ClientSize = new System.Drawing.Size(552, 450);
+            this.Controls.Add(this.groupBox2);
             this.Controls.Add(this.menuStrip1);
             this.Controls.Add(this.groupBox1);
             this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedSingle;
@@ -313,6 +374,8 @@
             this.groupBox1.PerformLayout();
             this.menuStrip1.ResumeLayout(false);
             this.menuStrip1.PerformLayout();
+            this.groupBox2.ResumeLayout(false);
+            this.groupBox2.PerformLayout();
             this.ResumeLayout(false);
             this.PerformLayout();
 
@@ -344,6 +407,11 @@
         private System.Windows.Forms.ToolStripMenuItem helpToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem donateToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem aboutToolStripMenuItem;
+        private System.Windows.Forms.GroupBox groupBox2;
+        private System.Windows.Forms.Label lbl_db_status;
+        private System.Windows.Forms.Label label1;
+        private System.Windows.Forms.TextBox txt_DriverId;
+        private System.Windows.Forms.CheckBox check_saveToDb;
     }
 }
 
