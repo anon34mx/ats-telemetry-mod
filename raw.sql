@@ -132,3 +132,8 @@ CREATE OR REPLACE TABLE raw(
 
     inserted_date datetime Default CURRENT_TIMESTAMP
 );
+
+SELECT driver_id, game_time, truck_id, truck_make, truck_speed, truck_cruiseControlSpeed, truck_cruiseControlOn, truck_odometer, truck_gear, truck_engineRpm, truck_engineRpmMax, truck_fuel, truck_fuelCapacity, truck_fuelAverageConsumption, truck_fuelWarningOn, truck_engineOn, truck_electricOn, truck_brakeTemperature, truck_adblue, truck_adblueCapacity, truck_adblueAverageConsumption, truck_adblueWarningOn, job_deadlineTime, job_sourceCity, job_sourceCompany, job_destinationCity, job_destinationCompany
+FROM `raw`
+where driver_id='20001129'
+and inserted_date>="2023-07-15 13:40:12" and inserted_date<='2023-07-17 23:59:59'

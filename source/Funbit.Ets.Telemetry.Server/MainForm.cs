@@ -16,6 +16,12 @@ using Newtonsoft.Json;
 using MySql.Data.MySqlClient;
 using System.Globalization;
 using System.Threading.Tasks;
+using System.IO.Ports;
+//using System.IO;
+using System.Threading;
+using System.Numerics;
+using System.Runtime.InteropServices;
+using static System.Windows.Forms.VisualStyles.VisualStyleElement.TaskbarClock;
 
 namespace Funbit.Ets.Telemetry.Server
 {
@@ -30,16 +36,53 @@ namespace Funbit.Ets.Telemetry.Server
         static readonly string BroadcastUserId = Convert.ToBase64String(
             Utf8.GetBytes(ConfigurationManager.AppSettings["BroadcastUserId"] ?? ""));
         static readonly string BroadcastUserPassword = Convert.ToBase64String(
-            Utf8.GetBytes(ConfigurationManager.AppSettings["BroadcastUserPassword"] ?? ""));
+            Utf8.GetBytes(ConfigurationManager.AppSettings["BroadcastUserListenSerialPassword"] ?? ""));
         static readonly int BroadcastRateInSeconds = Math.Min(Math.Max(1, 
             Convert.ToInt32(ConfigurationManager.AppSettings["BroadcastRate"])), 86400);
         static readonly bool UseTestTelemetryData = Convert.ToBoolean(
             ConfigurationManager.AppSettings["UseEts2TestTelemetryData"]);
+
         private MySqlConnection mysqlConn;
+        private DBConfig form_DBConfig;
+
+        private bool serialPortClosed = false;
+        private String[] ports;
+        private System.IO.Ports.SerialPort Port;
+        Thread threadSerial;
+        private int serialPortErrors = 0;
+
+
+        const uint MOUSEEVENTF_ABSOLUTE = 0x8000;
+        const uint MOUSEEVENTF_LEFTDOWN = 0x0002;
+        const uint MOUSEEVENTF_LEFTUP = 0x0004;
+        const uint MOUSEEVENTF_MIDDLEDOWN = 0x0020;
+        const uint MOUSEEVENTF_MIDDLEUP = 0x0040;
+        const uint MOUSEEVENTF_MOVE = 0x0001;
+        const uint MOUSEEVENTF_RIGHTDOWN = 0x0008;
+        const uint MOUSEEVENTF_RIGHTUP = 0x0010;
+        const uint MOUSEEVENTF_XDOWN = 0x0080;
+        const uint MOUSEEVENTF_XUP = 0x0100;
+        const uint MOUSEEVENTF_WHEEL = 0x0800;
+        const uint MOUSEEVENTF_HWHEEL = 0x01000;
+        const double mouseSpeed = 0.099;
+
+        private DateTime dateTime = DateTime.UtcNow;
+        private DateTime deltaTime;
+        long unixTimstamp;
+
 
         public MainForm()
         {
             InitializeComponent();
+            ports = SerialPort.GetPortNames();
+            cmb_serialPorts.Items.AddRange(ports);
+            cmb_serialPorts.SelectedIndex = cmb_serialPorts.Items.IndexOf(Properties.Settings.Default["SerialPort"].ToString());
+
+            OpenSerial(Properties.Settings.Default["SerialPort"].ToString());
+
+            txt_DriverId.Text = Properties.Settings.Default["Driver_id"].ToString();
+
+            Control.CheckForIllegalCrossThreadCalls = false;
         }
 
         static string IpToEndpointUrl(string host)
@@ -74,6 +117,8 @@ namespace Funbit.Ets.Telemetry.Server
                 Log.Error(ex);
                 ex.ShowAsMessageBox(this, @"Setup error");
             }
+
+            
         }
 
         void Start()
@@ -120,32 +165,9 @@ namespace Funbit.Ets.Telemetry.Server
                 ex.ShowAsMessageBox(this, @"Network error", MessageBoxIcon.Exclamation);
             }
 
-            
-            //mysqlConn = new MySql_conn();
-            //mysqlConn.connOpen();
-            string DB_server = Properties.Settings.Default.DB_server;
-            string DB_name = Properties.Settings.Default.DB_name;
-            string DB_user = Properties.Settings.Default.DB_user;
-            string DB_pass = Properties.Settings.Default.DB_pass;
-            try
-            {
-                mysqlConn = new MySql.Data.MySqlClient.MySqlConnection($"server={DB_server}; database={DB_name}; Uid={DB_user}; password={DB_pass};");
-                Console.WriteLine(mysqlConn.State);
-                mysqlConn.Open();
-                mysqlConn.Close();
-                lbl_db_status.Text = "Connected";
-                lbl_db_status.ForeColor = System.Drawing.Color.Green;
+            connectToDb();
 
-                Console.WriteLine("conectado a BD");
-            }
-            catch (MySql.Data.MySqlClient.MySqlException ex)
-            {
-                System.Windows.Forms.MessageBox.Show(ex.Message);
-                Console.WriteLine(ex);
-                lbl_db_status.Text = "Not connected :c";
-                lbl_db_status.ForeColor = System.Drawing.Color.Red;
-                check_saveToDb.Checked = false;
-            }
+
 
         }
         
@@ -163,15 +185,21 @@ namespace Funbit.Ets.Telemetry.Server
             // start WebApi server
             Start();
             System.Timers.Timer timer = new System.Timers.Timer();
-            timer.Interval = 1000;
+            timer.Interval = 100;
             timer.Elapsed += Timer_Elapsed;
             timer.Start();
+
+            //threadSerial = new Thread(ListenSerial);
+            //threadSerial.Start();
         }
 
         void MainForm_FormClosed(object sender, FormClosedEventArgs e)
         {
             _server?.Dispose();
             trayIcon.Visible = false;
+            serialPortClosed = true;
+            if(Port.IsOpen)
+                Port.Close();
         }
     
         void closeToolStripMenuItem_Click(object sender, EventArgs e)
@@ -289,15 +317,224 @@ namespace Funbit.Ets.Telemetry.Server
         {
             // TODO: implement later
         }
+
+        // aaron uwu
+
+        public void OpenSerial(string portName)
+        {
+            try
+            {
+                if (Port!=null)
+                    Port.Close();
+            }
+            catch (Exception ex)
+            {}
+
+            try
+            {
+                Port = new System.IO.Ports.SerialPort
+                {
+                    PortName = portName,
+                    BaudRate = 9600,
+                    ReadTimeout = 500
+                };
+                Port.Open();
+                Console.WriteLine("Port "+portName+" opened");
+                /*
+                Console.WriteLine("Port " + portName + " listening");
+                */
+                threadSerial = new Thread(ListenSerial);
+                threadSerial.Start();
+                Properties.Settings.Default.SerialPort = portName;
+                Properties.Settings.Default.Save();
+                com_status.Text = "Connected";
+            }
+            catch(Exception ex)
+            {
+                MessageBox.Show(ex.Message, "Error", MessageBoxButtons.OK);
+                com_status.Text = "Couldn't open";
+            }
+        }
+        public void ListenSerial()
+        {
+            DateTime currentTime = DateTime.UtcNow;
+            TimeSpan elapsedTime = currentTime.Subtract(deltaTime);
+            deltaTime = currentTime;
+            unixTimstamp = (long)elapsedTime.TotalMilliseconds;  // <--- unix timstamp in 
+            Console.WriteLine("Deltatime" + unixTimstamp);
+            while (!serialPortClosed)
+            {
+                try
+                {
+                    string text = Port.ReadLine();
+                    if (text.Length > 1)
+                    {
+                        text = text.Substring(0, text.Length - 1);
+                        txt_serialOutput.Text = text;
+                        Console.WriteLine("->" + text + "<-");
+                        TranslateSerialToKeys(text);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine("Debug");
+                    Console.WriteLine(ex.Message);
+                    serialPortErrors++;
+                    if (serialPortErrors>=3)
+                    {
+                        //threadSerial.Abort();
+                        //com_status.Text = "Disconnected";
+                    }
+                }
+            }
+        }
+
+        public void TranslateSerialToKeys(String text)
+        {
+            var data = Ets2TelemetryDataReader.Instance.Read();
+            switch (text)
+            {
+                case "truck_wipers":
+                        KeyboardHelper.PressKey(Keys.P);
+                    break;
+                case "truck_engineOn":
+                    if (data.Truck.EngineOn == false)
+                        KeyboardHelper.PressKey(Keys.E);
+                    break;
+                case "truck_engineOff":
+                    if (data.Truck.EngineOn==true)
+                        KeyboardHelper.PressKey(Keys.E);
+                    break;
+                case "truck_blinkersOn":
+                        KeyboardHelper.PressKey(Keys.F);
+                    break;
+                case "truck_blinkersOff":
+                        KeyboardHelper.PressKey(Keys.F);
+                    break;
+                case "truck_parkBrakeOn":
+                    if(data.Truck.ParkBrakeOn==false)
+                        KeyboardHelper.PressKey(Keys.Space);
+                    break;
+                case "truck_parkBrakeOff":
+                    if(data.Truck.ParkBrakeOn==true)
+                        KeyboardHelper.PressKey(Keys.Space);
+                    break;
+                case "truck_suspensionUp":
+                        KeyboardHelper.PressKey(Keys.Add); //front
+                        KeyboardHelper.PressKey(Keys.Add); //rear
+                    break;
+                case "truck_suspensionDown":
+                        KeyboardHelper.PressKey(Keys.Subtract); // front
+                        KeyboardHelper.PressKey(Keys.Subtract); // rear
+                    break;
+                case "truck_cruiseControlOn":
+                        KeyboardHelper.PressKey(Keys.C);
+                    break;
+                case "truck_cruiseControlSpeed+":
+                        KeyboardHelper.PressKey(Keys.RControlKey);
+                    break;
+                case "truck_cruiseControlSpeed-":
+                        KeyboardHelper.PressKey(Keys.RShiftKey);
+                    break;
+                case "truck_lightsBeamLowOn":
+                    if(data.Truck.LightsBeamLowOn==false)
+                        KeyboardHelper.PressKey(Keys.L);
+                        KeyboardHelper.PressKey(Keys.L);
+                    break;
+                case "truck_lightsBeamLowOff":
+                    if(data.Truck.LightsBeamLowOn==true)
+                        KeyboardHelper.PressKey(Keys.L);
+                    break;
+                case "truck_lightsBeamHighOn":
+                    if(data.Truck.LightsBeamHighOn==false)
+                        KeyboardHelper.PressKey(Keys.K);
+                    break;
+                case "truck_lightsBeamHighOff":
+                    if(data.Truck.LightsBeamHighOn == true)
+                        KeyboardHelper.PressKey(Keys.K);
+                    break;
+                case "Horn":
+                        KeyboardHelper.PressKey(Keys.H);
+                    break;
+                case "truck_electricOn":
+                    if(data.Truck.ElectricOn==false)
+                        KeyboardHelper.PressKey(Keys.Divide);
+                    break;
+                case "truck_electricOff":
+                    if (data.Truck.ElectricOn == true)
+                        KeyboardHelper.PressKey(Keys.Divide);
+                    break;
+                case "truck_flash":
+                    if (data.Truck.ElectricOn == true)
+                        KeyboardHelper.PressKey(Keys.J);
+                    break;
+                case "truck_cruiseControlResume":
+                    if (data.Truck.ElectricOn == true)
+                        KeyboardHelper.PressKey(Keys.F13);
+                    break;
+                case "truck_retarder+":
+                        SendKeys.SendWait("Ñ");
+                    break;
+                case "truck_retarder-":
+                        SendKeys.SendWait("{");
+                    break;
+                case "camera_firstPerson":
+                    KeyboardHelper.PressKey(Keys.D1);
+                    break;
+                case "camera_turnLeft":
+                    //mouse_event(MOUSEEVENTF_MOVE, (long)Convert.ToDouble(unixTimstamp * -mouseSpeed), 0, 0, 0);
+                    mouse_event(MOUSEEVENTF_MOVE, -15, 0, 0, 0);
+                    break;
+                case "camera_turnRight":
+                    //mouse_event(MOUSEEVENTF_MOVE, (long)Convert.ToDouble(unixTimstamp * mouseSpeed), 0, 0, 0);
+                    mouse_event(MOUSEEVENTF_MOVE, 15, 0, 0, 0);
+                    break;
+                case "camera_turnUp":
+                    //mouse_event(MOUSEEVENTF_MOVE, 0, (long)Convert.ToDouble(unixTimstamp * -mouseSpeed), 0, 0);
+                    mouse_event(MOUSEEVENTF_MOVE, 0, -15, 0, 0);
+                    break;
+                case "camera_turnDown":
+                    //mouse_event(MOUSEEVENTF_MOVE, 0, (long)Convert.ToDouble(unixTimstamp * mouseSpeed), 0, 0);
+                    mouse_event(MOUSEEVENTF_MOVE, 0, 15, 0, 0);
+                    break;
+
+            }
+        }
+        public void connectToDb()
+        {
+            string DB_server = Properties.Settings.Default["DB_server"].ToString();
+            string DB_name = Properties.Settings.Default["DB_name"].ToString();
+            string DB_port = Properties.Settings.Default["DB_port"].ToString() ?? "3306";
+            string DB_user = Properties.Settings.Default["DB_user"].ToString();
+            string DB_pass = Properties.Settings.Default["DB_pass"].ToString();
+            try
+            {
+                mysqlConn = new MySql.Data.MySqlClient.MySqlConnection($"server={DB_server}; port={DB_port}; database={DB_name}; Uid={DB_user}; password={DB_pass};");
+                mysqlConn.Open();
+                mysqlConn.Close();
+                lbl_db_status.Text = "Connected";
+                lbl_db_status.ForeColor = System.Drawing.Color.Green;
+            }
+            catch (MySql.Data.MySqlClient.MySqlException ex)
+            {
+                System.Windows.Forms.MessageBox.Show(ex.Message);
+                lbl_db_status.Text = "Not connected :c";
+                lbl_db_status.ForeColor = System.Drawing.Color.Red;
+                check_saveToDb.Checked = false;
+            }
+        }
         int timerCount = 0;
         void Timer_Elapsed(object sender, System.Timers.ElapsedEventArgs e)
         {
             if (Ets2ProcessHelper.IsEts2Running && Ets2TelemetryDataReader.Instance.IsConnected)
             {
                 var data = Ets2TelemetryDataReader.Instance.Read();
+                //Console.WriteLine(data.Truck.BlinkerLeftActive+"__"+ data.Truck.BlinkerLeftOn.ToString() + "__ ");        // it's on in this moment
+
+                //Console.Write(data.Truck.BlinkerRightOn + "__"+ data.Truck.BlinkerRightActive.ToString()); // should blink
                 if (data.Game.Connected == true && data.Game.Paused == false && check_saveToDb.Checked==true && lbl_db_status.Text == "Connected")
                 {
-                    Console.WriteLine(timerCount + " ");
+                    //Console.WriteLine(timerCount + " ");
                     timerCount++;
                     try
                     {
@@ -530,7 +767,6 @@ namespace Funbit.Ets.Telemetry.Server
                         $"{data.Navigation.EstimatedDistance}," +
                         $"{data.Navigation.SpeedLimit}" +
                         $");";
-                        Console.WriteLine(str_insrt);
                         MySqlCommand insrt = new MySqlCommand(str_insrt, mysqlConn);
                         MySqlDataReader rs;
                         mysqlConn.Open();
@@ -539,17 +775,66 @@ namespace Funbit.Ets.Telemetry.Server
                     }
                     catch (MySqlException ex)
                     {
-                        Console.WriteLine(ex);
                         lbl_db_status.Text = "Error";
                         lbl_db_status.ForeColor= System.Drawing.Color.Red;
+
+                        Console.Error.WriteLine("Probar conexion");
+                        try
+                        {
+                            mysqlConn.Open();
+
+                            mysqlConn.Close();
+                            Console.WriteLine("ok uwu");
+                        }
+                        catch (Exception ex2)
+                        {
+                            mysqlConn.Close();
+                            Console.WriteLine("x.x");
+                            Console.WriteLine(ex2);
+
+                        }
                     }
+                    //Port.Open();
+                    //Port.WriteLine("sdf");
+                    //Port.Close();
                 }
             }
         }
 
-        private void label1_Click(object sender, EventArgs e)
+        private void dBSettingsToolStripMenuItem_Click(object sender, EventArgs e)
         {
-
+            if (form_DBConfig == null || form_DBConfig.Text == "")
+            {
+                form_DBConfig = new DBConfig(this);
+                form_DBConfig.Visible = true;
+            }
+            form_DBConfig.Focus();
         }
+
+        private void btn_openSerial_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                Port.Close();
+            }catch (Exception ex)
+            {
+
+            }
+            OpenSerial(cmb_serialPorts.Text);
+        }
+
+        private void txt_DriverId_TextChanged(object sender, EventArgs e)
+        {
+            Properties.Settings.Default.Driver_id=txt_DriverId.Text;
+            Properties.Settings.Default.Save();
+        }
+
+        private void linkLabel1_Click(object sender, EventArgs e)
+        {
+            System.Diagnostics.Process.Start("steam://rungameid/270880");
+        }
+
+        [DllImport("user32.dll", CharSet = CharSet.Auto, CallingConvention = CallingConvention.StdCall)]
+        public static extern void mouse_event(long dwFlags, long dx, long dy, long cButtons, long dwExtraInfo);
     }
 }

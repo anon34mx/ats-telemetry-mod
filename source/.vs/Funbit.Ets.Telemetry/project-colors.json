@@ -1,0 +1,11 @@
+{
+  "Version": 1,
+  "ProjectMap": {
+    "5dddd979-7911-4e6e-877d-4674e3dd7e62": {
+      "ProjectGuid": "5dddd979-7911-4e6e-877d-4674e3dd7e62",
+      "DisplayName": "Funbit.Ets.Telemetry.Server",
+      "ColorIndex": 0
+    }
+  },
+  "NextColorIndex": 1
+}

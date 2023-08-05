@@ -166,6 +166,12 @@
     <Compile Include="Controllers\Ets2TelemetryHub.cs" />
     <Compile Include="Controllers\StaticFileController.cs" />
     <Compile Include="Controllers\Ets2TelemetryController.cs" />
+    <Compile Include="DBConfig.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="DBConfig.Designer.cs">
+      <DependentUpon>DBConfig.cs</DependentUpon>
+    </Compile>
     <Compile Include="Helpers\AssemblyHelper.cs" />
     <Compile Include="Helpers\Ets2ProcessHelper.cs" />
     <Compile Include="Data\IEts2TelemetryData.cs" />
@@ -256,6 +262,9 @@
     <None Include="Resources\check-error.png" />
     <None Include="Resources\check-on.png" />
     <None Include="Resources\check-off.png" />
+    <EmbeddedResource Include="DBConfig.resx">
+      <DependentUpon>DBConfig.cs</DependentUpon>
+    </EmbeddedResource>
     <EmbeddedResource Include="MainForm.resx">
       <DependentUpon>MainForm.cs</DependentUpon>
     </EmbeddedResource>
