@@ -66,6 +66,14 @@ namespace Funbit.Ets.Telemetry.Server
         const uint MOUSEEVENTF_HWHEEL = 0x01000;
         const double mouseSpeed = 0.099;
 
+        public const int KEYEVENTF_EXTENDEDKEY = 0x0001; //Key down flag
+        public const int KEYEVENTF_KEYUP = 0x0002; //Key up flag
+        public const int VK_RCONTROL = 0xA3; //Right Control key code
+        public const int VK_W = 0x57; // W
+        public const int VK_A = 0x41; // A
+        public const int VK_S = 0x53; // A
+        public const int VK_D = 0x44; // W
+
         private DateTime dateTime = DateTime.UtcNow;
         private DateTime deltaTime;
         long unixTimstamp;
@@ -419,22 +427,38 @@ namespace Funbit.Ets.Telemetry.Server
                     if(data.Truck.ParkBrakeOn==true)
                         KeyboardHelper.PressKey(Keys.Space);
                     break;
-                case "truck_suspensionUp":
-                        KeyboardHelper.PressKey(Keys.Add); //front
-                        KeyboardHelper.PressKey(Keys.Add); //rear
+                case "truck_suspensionUp_start":
+                    for (int i = 0; i < 10; i++)
+                    {
+                        KeyboardHelper.PressKey(Keys.W);
+                    }
+                    //keybd_event(VK_W, 0, KEYEVENTF_EXTENDEDKEY, 0);
+                    //Thread.Sleep(1);
+                    //keybd_event(VK_D, 0, KEYEVENTF_EXTENDEDKEY, 0);
                     break;
-                case "truck_suspensionDown":
-                        KeyboardHelper.PressKey(Keys.Subtract); // front
-                        KeyboardHelper.PressKey(Keys.Subtract); // rear
+                case "truck_suspensionUp_end":
+                    keybd_event(VK_W, 0, KEYEVENTF_KEYUP, 0);
+                    Thread.Sleep(10);
+                    keybd_event(VK_D, 0, KEYEVENTF_KEYUP, 0);
+                    break;
+                case "truck_suspensionDown_start":
+                    keybd_event(VK_A, 0, KEYEVENTF_EXTENDEDKEY, 0);
+                    Thread.Sleep(10);
+                    keybd_event(VK_S, 0, KEYEVENTF_EXTENDEDKEY, 0);
+                    break;
+                case "truck_suspensionDown_end":
+                    keybd_event(VK_A, 0, KEYEVENTF_KEYUP, 0);
+                    Thread.Sleep(10);
+                    keybd_event(VK_S, 0, KEYEVENTF_KEYUP, 0);
                     break;
                 case "truck_cruiseControlOn":
-                        KeyboardHelper.PressKey(Keys.C);
+                    KeyboardHelper.PressKey(Keys.C);
                     break;
                 case "truck_cruiseControlSpeed+":
-                        KeyboardHelper.PressKey(Keys.RControlKey);
+                    SendKeys.SendWait("{,}");
                     break;
                 case "truck_cruiseControlSpeed-":
-                        KeyboardHelper.PressKey(Keys.RShiftKey);
+                    SendKeys.SendWait("{.}");
                     break;
                 case "truck_lightsBeamLowOn":
                     if(data.Truck.LightsBeamLowOn==false)
@@ -453,16 +477,17 @@ namespace Funbit.Ets.Telemetry.Server
                     if(data.Truck.LightsBeamHighOn == true)
                         KeyboardHelper.PressKey(Keys.K);
                     break;
+                //Falta en hardware
                 case "Horn":
                         KeyboardHelper.PressKey(Keys.H);
                     break;
                 case "truck_electricOn":
                     if(data.Truck.ElectricOn==false)
-                        KeyboardHelper.PressKey(Keys.Divide);
+                        KeyboardHelper.PressKey(Keys.OemMinus);
                     break;
                 case "truck_electricOff":
                     if (data.Truck.ElectricOn == true)
-                        KeyboardHelper.PressKey(Keys.Divide);
+                        KeyboardHelper.PressKey(Keys.OemMinus);
                     break;
                 case "truck_flash":
                     if (data.Truck.ElectricOn == true)
@@ -473,28 +498,26 @@ namespace Funbit.Ets.Telemetry.Server
                         KeyboardHelper.PressKey(Keys.F13);
                     break;
                 case "truck_retarder+":
-                        SendKeys.SendWait("Ñ");
+                    //SendKeys.SendWait("Ñ");
+                    KeyboardHelper.PressKey(Keys.Add);
                     break;
                 case "truck_retarder-":
-                        SendKeys.SendWait("{");
+                    //SendKeys.SendWait("{");
+                    KeyboardHelper.PressKey(Keys.Subtract);
                     break;
                 case "camera_firstPerson":
                     KeyboardHelper.PressKey(Keys.D1);
                     break;
                 case "camera_turnLeft":
-                    //mouse_event(MOUSEEVENTF_MOVE, (long)Convert.ToDouble(unixTimstamp * -mouseSpeed), 0, 0, 0);
                     mouse_event(MOUSEEVENTF_MOVE, -15, 0, 0, 0);
                     break;
                 case "camera_turnRight":
-                    //mouse_event(MOUSEEVENTF_MOVE, (long)Convert.ToDouble(unixTimstamp * mouseSpeed), 0, 0, 0);
                     mouse_event(MOUSEEVENTF_MOVE, 15, 0, 0, 0);
                     break;
                 case "camera_turnUp":
-                    //mouse_event(MOUSEEVENTF_MOVE, 0, (long)Convert.ToDouble(unixTimstamp * -mouseSpeed), 0, 0);
                     mouse_event(MOUSEEVENTF_MOVE, 0, -15, 0, 0);
                     break;
                 case "camera_turnDown":
-                    //mouse_event(MOUSEEVENTF_MOVE, 0, (long)Convert.ToDouble(unixTimstamp * mouseSpeed), 0, 0);
                     mouse_event(MOUSEEVENTF_MOVE, 0, 15, 0, 0);
                     break;
 
@@ -836,5 +859,15 @@ namespace Funbit.Ets.Telemetry.Server
 
         [DllImport("user32.dll", CharSet = CharSet.Auto, CallingConvention = CallingConvention.StdCall)]
         public static extern void mouse_event(long dwFlags, long dx, long dy, long cButtons, long dwExtraInfo);
+        
+        [DllImport("user32.dll", SetLastError = true)]
+        static extern void keybd_event(byte bVk, byte bScan, int dwFlags, int dwExtraInfo);
+
+        private void textBox1_KeyDown(object sender, KeyEventArgs e)
+        {
+            Console.WriteLine(e.KeyCode.ToString());
+            Console.WriteLine(e.KeyData.ToString() );
+            Console.WriteLine(e.KeyValue.ToString() );
+        }
     }
 }

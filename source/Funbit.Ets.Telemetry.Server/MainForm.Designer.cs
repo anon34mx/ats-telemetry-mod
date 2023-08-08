@@ -61,13 +61,14 @@
             this.closeToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.groupBox3 = new System.Windows.Forms.GroupBox();
             this.groupBox2 = new System.Windows.Forms.GroupBox();
+            this.textBox1 = new System.Windows.Forms.TextBox();
+            this.label3 = new System.Windows.Forms.Label();
             this.com_status = new System.Windows.Forms.Label();
             this.txt_serialOutput = new System.Windows.Forms.TextBox();
             this.btn_openSerial = new System.Windows.Forms.Button();
             this.label2 = new System.Windows.Forms.Label();
             this.cmb_serialPorts = new System.Windows.Forms.ComboBox();
             this.linkLabel1 = new System.Windows.Forms.LinkLabel();
-            this.label3 = new System.Windows.Forms.Label();
             this.groupBox1.SuspendLayout();
             this.menuStrip1.SuspendLayout();
             this.groupBox3.SuspendLayout();
@@ -375,6 +376,7 @@
             // 
             // groupBox2
             // 
+            this.groupBox2.Controls.Add(this.textBox1);
             this.groupBox2.Controls.Add(this.label3);
             this.groupBox2.Controls.Add(this.com_status);
             this.groupBox2.Controls.Add(this.txt_serialOutput);
@@ -388,6 +390,23 @@
             this.groupBox2.TabStop = false;
             this.groupBox2.Text = "Serial to keyboard";
             // 
+            // textBox1
+            // 
+            this.textBox1.Location = new System.Drawing.Point(325, 68);
+            this.textBox1.Name = "textBox1";
+            this.textBox1.Size = new System.Drawing.Size(100, 20);
+            this.textBox1.TabIndex = 6;
+            this.textBox1.KeyDown += new System.Windows.Forms.KeyEventHandler(this.textBox1_KeyDown);
+            // 
+            // label3
+            // 
+            this.label3.AutoSize = true;
+            this.label3.Location = new System.Drawing.Point(98, 42);
+            this.label3.Name = "label3";
+            this.label3.Size = new System.Drawing.Size(39, 13);
+            this.label3.TabIndex = 5;
+            this.label3.Text = "Output";
+            // 
             // com_status
             // 
             this.com_status.AutoSize = true;
@@ -399,9 +418,9 @@
             // 
             // txt_serialOutput
             // 
-            this.txt_serialOutput.Location = new System.Drawing.Point(393, 42);
+            this.txt_serialOutput.Location = new System.Drawing.Point(144, 42);
             this.txt_serialOutput.Name = "txt_serialOutput";
-            this.txt_serialOutput.Size = new System.Drawing.Size(120, 20);
+            this.txt_serialOutput.Size = new System.Drawing.Size(369, 20);
             this.txt_serialOutput.TabIndex = 3;
             // 
             // btn_openSerial
@@ -443,15 +462,6 @@
             this.linkLabel1.TabStop = true;
             this.linkLabel1.Text = "Start";
             this.linkLabel1.Click += new System.EventHandler(this.linkLabel1_Click);
-            // 
-            // label3
-            // 
-            this.label3.AutoSize = true;
-            this.label3.Location = new System.Drawing.Point(348, 45);
-            this.label3.Name = "label3";
-            this.label3.Size = new System.Drawing.Size(39, 13);
-            this.label3.TabIndex = 5;
-            this.label3.Text = "Output";
             // 
             // MainForm
             // 
@@ -526,6 +536,7 @@
         private System.Windows.Forms.Label com_status;
         private System.Windows.Forms.LinkLabel linkLabel1;
         private System.Windows.Forms.Label label3;
+        private System.Windows.Forms.TextBox textBox1;
     }
 }
 
