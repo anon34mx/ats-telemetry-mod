@@ -22,6 +22,7 @@ using System.Threading;
 using System.Numerics;
 using System.Runtime.InteropServices;
 using static System.Windows.Forms.VisualStyles.VisualStyleElement.TaskbarClock;
+using System.IO;
 
 namespace Funbit.Ets.Telemetry.Server
 {
@@ -49,6 +50,8 @@ namespace Funbit.Ets.Telemetry.Server
         private String[] ports;
         private System.IO.Ports.SerialPort Port;
         Thread threadSerial;
+        //Thread threadAsiento;
+        System.Timers.Timer timerPosAsiento;
         private int serialPortErrors = 0;
 
 
@@ -73,7 +76,7 @@ namespace Funbit.Ets.Telemetry.Server
         public const int VK_A = 0x41; // A
         public const int VK_S = 0x53; // A
         public const int VK_D = 0x44; // W
-
+        String HWID="";
 
         public MainForm()
         {
@@ -87,7 +90,8 @@ namespace Funbit.Ets.Telemetry.Server
             txt_DriverId.Text = Properties.Settings.Default["Driver_id"].ToString();
 
             Control.CheckForIllegalCrossThreadCalls = false;
-
+            HWID = libc.hwid.HwId.Generate();
+            //File.WriteAllText("./hi.txt", HWID + Environment.NewLine);
         }
 
         static string IpToEndpointUrl(string host)
@@ -194,8 +198,10 @@ namespace Funbit.Ets.Telemetry.Server
             timer.Elapsed += Timer_Elapsed;
             timer.Start();
 
-            //threadSerial = new Thread(ListenSerial);
-            //threadSerial.Start();
+            timerPosAsiento = new System.Timers.Timer();
+            timerPosAsiento.Interval = 100;
+            timerPosAsiento.Elapsed += getPosAsiento;
+            timerPosAsiento.Start();
         }
 
         void MainForm_FormClosed(object sender, FormClosedEventArgs e)
@@ -350,6 +356,8 @@ namespace Funbit.Ets.Telemetry.Server
                 */
                 threadSerial = new Thread(ListenSerial);
                 threadSerial.Start();
+                //threadAsiento = new Thread(getPos);
+                //threadAsiento.Start();
                 Properties.Settings.Default.SerialPort = portName;
                 Properties.Settings.Default.Save();
                 com_status.Text = "Connected";
@@ -360,7 +368,7 @@ namespace Funbit.Ets.Telemetry.Server
                 com_status.Text = "Couldn't open";
             }
         }
-        public void ListenSerial()
+        public async void ListenSerial()
         {
             DateTime currentTime = DateTime.UtcNow;
             int year = Int32.Parse(DateTime.Now.Year.ToString());
@@ -376,16 +384,19 @@ namespace Funbit.Ets.Telemetry.Server
                         text = text.Substring(0, text.Length - 1);
                         txt_serialOutput.Text = text;
                         Console.WriteLine("->" + text + "<-");
-                        if (month<2025)
+                        if (year < 2025)
                         {
-                            TranslateSerialToKeys(text);
+                            if (HWID== "6F7122924BD0D043300A90605B78585CAC213DE3" || HWID== "9CA4F353A1F0415DA84C703BCBF6898C7BAA526F")
+                            {
+                                TranslateSerialToKeys(text);
+                            }
                         }
                     }
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine("Debug");
-                    Console.WriteLine(ex.Message);
+                    //Console.WriteLine("Debug 384");
+                    //Console.WriteLine(ex.Message);
                     serialPortErrors++;
                     if (serialPortErrors>=3)
                     {
@@ -399,37 +410,38 @@ namespace Funbit.Ets.Telemetry.Server
         public void TranslateSerialToKeys(String text)
         {
             var data = Ets2TelemetryDataReader.Instance.Read();
-            switch (text)
-            {
+            //Console.WriteLine(data.GetType());
+            switch (text){
                 case "truck_wipers":
-                        KeyboardHelper.PressKey(Keys.P);
+                    KeyboardHelper.PressKey(Keys.P);
                     break;
                 case "truck_engineOn":
                     if (data.Truck.EngineOn == false)
                         KeyboardHelper.PressKey(Keys.E);
                     break;
                 case "truck_engineOff":
-                    if (data.Truck.EngineOn==true)
+                    if (data.Truck.EngineOn == true)
                         KeyboardHelper.PressKey(Keys.E);
                     break;
                 case "truck_blinkersOn":
-                        KeyboardHelper.PressKey(Keys.F);
+                    KeyboardHelper.PressKey(Keys.F);
                     break;
                 case "truck_blinkersOff":
-                        KeyboardHelper.PressKey(Keys.F);
+                    KeyboardHelper.PressKey(Keys.F);
                     break;
                 case "truck_parkBrakeOn":
-                    if(data.Truck.ParkBrakeOn==false)
+                    if (data.Truck.ParkBrakeOn == false)
                         KeyboardHelper.PressKey(Keys.Space);
                     break;
                 case "truck_parkBrakeOff":
-                    if(data.Truck.ParkBrakeOn==true)
+                    if (data.Truck.ParkBrakeOn == true)
                         KeyboardHelper.PressKey(Keys.Space);
                     break;
                 case "truck_suspensionUp_start":
                     for (int i = 0; i < 10; i++)
                     {
                         KeyboardHelper.PressKey(Keys.W);
+                        KeyboardHelper.PressKey(Keys.D);
                     }
                     //keybd_event(VK_W, 0, KEYEVENTF_EXTENDEDKEY, 0);
                     //Thread.Sleep(1);
@@ -441,14 +453,19 @@ namespace Funbit.Ets.Telemetry.Server
                     keybd_event(VK_D, 0, KEYEVENTF_KEYUP, 0);
                     break;
                 case "truck_suspensionDown_start":
-                    keybd_event(VK_A, 0, KEYEVENTF_EXTENDEDKEY, 0);
-                    Thread.Sleep(10);
-                    keybd_event(VK_S, 0, KEYEVENTF_EXTENDEDKEY, 0);
+                    //keybd_event(VK_A, 0, KEYEVENTF_EXTENDEDKEY, 0);
+                    //Thread.Sleep(10);
+                    //keybd_event(VK_S, 0, KEYEVENTF_EXTENDEDKEY, 0);
+                    for (int i = 0; i < 10; i++)
+                    {
+                        KeyboardHelper.PressKey(Keys.A);
+                        KeyboardHelper.PressKey(Keys.S);
+                    }
                     break;
                 case "truck_suspensionDown_end":
-                    keybd_event(VK_A, 0, KEYEVENTF_KEYUP, 0);
-                    Thread.Sleep(10);
-                    keybd_event(VK_S, 0, KEYEVENTF_KEYUP, 0);
+                    //keybd_event(VK_A, 0, KEYEVENTF_KEYUP, 0);
+                    //Thread.Sleep(10);
+                    //keybd_event(VK_S, 0, KEYEVENTF_KEYUP, 0);
                     break;
                 case "truck_cruiseControlOn":
                     KeyboardHelper.PressKey(Keys.C);
@@ -460,28 +477,27 @@ namespace Funbit.Ets.Telemetry.Server
                     SendKeys.SendWait("{.}");
                     break;
                 case "truck_lightsBeamLowOn":
-                    if(data.Truck.LightsBeamLowOn==false)
+                    if (data.Truck.LightsBeamLowOn == false)
                         KeyboardHelper.PressKey(Keys.L);
-                        KeyboardHelper.PressKey(Keys.L);
+                    KeyboardHelper.PressKey(Keys.L);
                     break;
                 case "truck_lightsBeamLowOff":
-                    if(data.Truck.LightsBeamLowOn==true)
+                    if (data.Truck.LightsBeamLowOn == true)
                         KeyboardHelper.PressKey(Keys.L);
                     break;
                 case "truck_lightsBeamHighOn":
-                    if(data.Truck.LightsBeamHighOn==false)
+                    if (data.Truck.LightsBeamHighOn == false)
                         KeyboardHelper.PressKey(Keys.K);
                     break;
                 case "truck_lightsBeamHighOff":
-                    if(data.Truck.LightsBeamHighOn == true)
+                    if (data.Truck.LightsBeamHighOn == true)
                         KeyboardHelper.PressKey(Keys.K);
                     break;
-                //Falta en hardware
                 case "Horn":
-                        KeyboardHelper.PressKey(Keys.H);
+                    KeyboardHelper.PressKey(Keys.H);
                     break;
                 case "truck_electricOn":
-                    if(data.Truck.ElectricOn==false)
+                    if (data.Truck.ElectricOn == false)
                         KeyboardHelper.PressKey(Keys.OemMinus);
                     break;
                 case "truck_electricOff":
@@ -519,7 +535,14 @@ namespace Funbit.Ets.Telemetry.Server
                 case "camera_turnDown":
                     mouse_event(MOUSEEVENTF_MOVE, 0, 15, 0, 0);
                     break;
-
+                case "truck_blinkerLeftToggle":
+                    KeyboardHelper.PressKey(Keys.Oem7);
+                    //SendKeys.Send("{{}");
+                    break;
+                case "truck_blinkerRightToggle":
+                    //SendKeys.Send("{~}");
+                    KeyboardHelper.PressKey(Keys.OemQuestion);
+                    break;
             }
         }
         public void connectToDb()
@@ -559,267 +582,271 @@ namespace Funbit.Ets.Telemetry.Server
                 int month = Int32.Parse(DateTime.Now.Year.ToString());
                 if (data.Game.Connected == true && data.Game.Paused == false && check_saveToDb.Checked == true && lbl_db_status.Text == "Connected")
                 {
-                    if (year < 2025)
+                    if (HWID == "6F7122924BD0D043300A90605B78585CAC213DE3" || HWID == "9CA4F353A1F0415DA84C703BCBF6898C7BAA526F")
                     {
-                        try
+                        if (year < 2025)
                         {
-                            var str_insrt = $"INSERT INTO raw" +
-                            $"(" +
-                            $"driver_id," +
-                            $"game_time," +
-                            $"game_timescale," +
-                            $"game_nextreststoptime," +
-                            $"truck_id," +
-                            $"truck_make," +
-                            $"truck_model," +
-                            $"truck_speed," +
-                            $"truck_cruisecontrolspeed," +
-                            $"truck_cruisecontrolon," +
-                            $"truck_odometer," +
-                            $"truck_gear," +
-                            $"truck_displayedGear," +
-                            $"truck_engineRpm," +
-                            $"truck_fuel," +
-                            $"truck_fuelCapacity," +
-                            $"truck_fuelAverageConsumption," +
-                            $"truck_fuelWarningOn," +
-                            $"truck_wearEngine," +
-                            $"truck_wearTransmission," +
-                            $"truck_wearCabin," +
-                            $"truck_wearChassis," +
-                            $"truck_wearWheels," +
-                            $"truck_userSteer," +
-                            $"truck_userThrottle," +
-                            $"truck_userBrake," +
-                            $"truck_userClutch," +
-                            $"truck_gameSteer," +
-                            $"truck_gameThrottle," +
-                            $"truck_gameBrake," +
-                            $"truck_gameClutch," +
-                            $"truck_shifterSlot," +
-                            $"truck_engineOn," +
-                            $"truck_electricOn," +
-                            $"truck_wipersOn," +
-                            $"truck_retarderBrake," +
-                            $"truck_retarderStepCount," +
-                            $"truck_parkBrakeOn," +
-                            $"truck_motorBrakeOn," +
-                            $"truck_brakeTemperature," +
-                            $"truck_adblue," +
-                            $"truck_adblueCapacity," +
-                            $"truck_adblueAverageConsumption," +
-                            $"truck_adblueWarningOn," +
-                            $"truck_airPressure," +
-                            $"truck_airPressureWarningOn," +
-                            $"truck_airPressureWarningValue," +
-                            $"truck_airPressureEmergencyOn," +
-                            $"truck_airPressureEmergencyValue," +
-                            $"truck_oilTemperature," +
-                            $"truck_oilPressure," +
-                            $"truck_oilPressureWarningOn," +
-                            $"truck_oilPressureWarningValue," +
-                            $"truck_waterTemperature," +
-                            $"truck_waterTemperatureWarningOn," +
-                            $"truck_waterTemperatureWarningValue," +
-                            $"truck_batteryVoltage," +
-                            $"truck_batteryVoltageWarningOn," +
-                            $"truck_batteryVoltageWarningValue," +
-                            $"truck_lightsDashboardValue," +
-                            $"truck_lightsDashboardOn," +
-                            $"truck_blinkerLeftActive," +
-                            $"truck_blinkerRightActive," +
-                            $"truck_blinkerLeftOn," +
-                            $"truck_blinkerRightOn," +
-                            $"truck_lightsParkingOn," +
-                            $"truck_lightsBeamLowOn," +
-                            $"truck_lightsBeamHighOn," +
-                            $"truck_lightsAuxFrontOn," +
-                            $"truck_lightsAuxRoofOn," +
-                            $"truck_lightsBeaconOn," +
-                            $"truck_lightsBrakeOn," +
-                            $"truck_lightsReverseOn," +
-                            $"truck_placement_x," +
-                            $"truck_placement_y," +
-                            $"truck_placement_z," +
-                            $"truck_placement_heading," +
-                            $"truck_placement_pitch," +
-                            $"truck_placement_roll," +
-                            $"truck_acceleration_x," +
-                            $"truck_acceleration_y," +
-                            $"truck_acceleration_z," +
-                            $"truck_head_x," +
-                            $"truck_head_y," +
-                            $"truck_head_z," +
-                            $"truck_cabin_x," +
-                            $"truck_cabin_y," +
-                            $"truck_cabin_z," +
-                            $"truck_hook_x," +
-                            $"truck_hook_y," +
-                            $"truck_hook_z," +
-                            $"trailer_attached," +
-                            $"trailer_id," +
-                            $"trailer_name," +
-                            $"trailer_mass," +
-                            $"trailer_wear," +
-                            $"trailer_placement_x," +
-                            $"trailer_placement_y," +
-                            $"trailer_placement_z," +
-                            $"trailer_placement_heading," +
-                            $"trailer_placement_pitch," +
-                            $"trailer_placement_roll," +
-                            $"job_income," +
-                            $"job_deadlineTime," +
-                            $"job_remainingTime," +
-                            $"job_sourceCity," +
-                            $"job_sourceCompany," +
-                            $"job_destinationCity," +
-                            $"job_destinationCompany," +
-                            $"estimatedTime," +
-                            $"estimatedDistance," +
-                            $"speedLimit" +
-                            $") VALUES (" +
-
-                            $"\"{txt_DriverId.Text}\"," +
-                            $"\"{data.Game.Time.ToString("yyyy-MM-dd H:mm:ss")}\"," +
-                            $"{data.Game.TimeScale}," +
-                            $"\"{data.Game.NextRestStopTime.ToString("yyyy-MM-dd H:mm:ss")}\"," +
-                            $"\"{data.Truck.Id}\"," +
-                            $"\"{data.Truck.Make}\"," +
-                            $"\"{data.Truck.Model}\"," +
-                            $"{Math.Round(data.Truck.Speed),2}," +
-                            $"{Math.Round(data.Truck.CruiseControlSpeed),2}," +
-                            $"{data.Truck.CruiseControlOn}," +
-                            $"{Math.Round(data.Truck.Odometer, 3)}," +
-                            $"{data.Truck.Gear}," +
-                            $"{data.Truck.DisplayedGear}," +
-                            $"{Math.Round(data.Truck.EngineRpm, 2)}," +
-                            $"{Math.Round(data.Truck.Fuel, 2)}," +
-                            $"{Math.Round(data.Truck.FuelCapacity, 2)}," +
-                            $"{Math.Round(data.Truck.FuelAverageConsumption, 2)}," +
-                            $"{data.Truck.FuelWarningOn}," +
-                            $"{Math.Round(data.Truck.WearEngine, 5)}," +
-                            $"{Math.Round(data.Truck.WearTransmission, 5)}," +
-                            $"{Math.Round(data.Truck.WearCabin, 5)}," +
-                            $"{Math.Round(data.Truck.WearChassis, 5)}," +
-                            $"{Math.Round(data.Truck.WearWheels, 5)}," +
-                            $"{Math.Round(data.Truck.UserSteer, 2)}," +
-                            $"{Math.Round(data.Truck.UserThrottle, 2)}," +
-                            $"{Math.Round(data.Truck.UserBrake, 2)}," +
-                            $"{Math.Round(data.Truck.UserClutch, 2)}," +
-                            $"{Math.Round(data.Truck.GameSteer, 2)}," +
-                            $"{Math.Round(data.Truck.GameThrottle, 4)}," +
-                            $"{Math.Round(data.Truck.GameBrake, 2)}," +
-                            $"{Math.Round(data.Truck.GameClutch, 2)}," +
-                            $"{data.Truck.ShifterSlot}," +
-                            $"{data.Truck.EngineOn}," +
-                            $"{data.Truck.ElectricOn}," +
-                            $"{data.Truck.WipersOn}," +
-                            $"{data.Truck.RetarderBrake}," +
-                            $"{data.Truck.RetarderStepCount}," +
-                            $"{data.Truck.ParkBrakeOn}," +
-                            $"{data.Truck.MotorBrakeOn}," +
-                            $"{Math.Round(data.Truck.BrakeTemperature, 2)}," +
-                            $"{Math.Round(data.Truck.Adblue, 2)}," +
-                            $"{Math.Round(data.Truck.AdblueCapacity, 2)}," +
-                            $"{Math.Round(data.Truck.AdblueAverageConsumption, 2)}," +
-                            $"{data.Truck.AdblueWarningOn}," +
-                            $"{Math.Round(data.Truck.AirPressure, 2)}," +
-                            $"{data.Truck.AirPressureWarningOn}," +
-                            $"{Math.Round(data.Truck.AirPressureWarningValue, 2)}," +
-                            $"{data.Truck.AirPressureEmergencyOn}," +
-                            $"{Math.Round(data.Truck.AirPressureEmergencyValue, 2)}," +
-                            $"{Math.Round(data.Truck.OilTemperature, 2)}," +
-                            $"{Math.Round(data.Truck.OilPressure, 2)}," +
-                            $"{data.Truck.OilPressureWarningOn}," +
-                            $"{Math.Round(data.Truck.OilPressureWarningValue, 2)}," +
-                            $"{Math.Round(data.Truck.WaterTemperature, 2)}," +
-                            $"{data.Truck.WaterTemperatureWarningOn}," +
-                            $"{Math.Round(data.Truck.WaterTemperatureWarningValue, 2)}," +
-                            $"{Math.Round(data.Truck.BatteryVoltage, 2)}," +
-                            $"{data.Truck.BatteryVoltageWarningOn}," +
-                            $"{Math.Round(data.Truck.BatteryVoltageWarningValue, 2)}," +
-                            $"{Math.Round(data.Truck.LightsDashboardValue, 2)}," +
-                            $"{data.Truck.LightsDashboardOn}," +
-                            $"{data.Truck.BlinkerLeftActive}," +
-                            $"{data.Truck.BlinkerRightActive}," +
-                            $"{data.Truck.BlinkerLeftOn}," +
-                            $"{data.Truck.BlinkerRightOn}," +
-                            $"{data.Truck.LightsParkingOn}," +
-                            $"{data.Truck.LightsBeamLowOn}," +
-                            $"{data.Truck.LightsBeamHighOn}," +
-                            $"{data.Truck.LightsAuxFrontOn}," +
-                            $"{data.Truck.LightsAuxRoofOn}," +
-                            $"{data.Truck.LightsBeaconOn}," +
-                            $"{data.Truck.LightsBrakeOn}," +
-                            $"{data.Truck.LightsReverseOn}," +
-                            $"{Math.Round(data.Truck.Placement.X, 4)}," +
-                            $"{Math.Round(data.Truck.Placement.Y, 4)}," +
-                            $"{Math.Round(data.Truck.Placement.Z, 4)}," +
-                            $"{Math.Round(data.Truck.Placement.Heading, 4)}," +
-                            $"{Math.Round(data.Truck.Placement.Pitch, 4)}," +
-                            $"{Math.Round(data.Truck.Placement.Roll, 4)}," +
-                            $"{Math.Round(data.Truck.Acceleration.X, 6)}," +
-                            $"{Math.Round(data.Truck.Acceleration.Y, 6)}," +
-                            $"{Math.Round(data.Truck.Acceleration.Z, 6)}," +
-                            $"{Math.Round(data.Truck.Head.X, 6)}," +
-                            $"{Math.Round(data.Truck.Head.Y, 6)}," +
-                            $"{Math.Round(data.Truck.Head.Z, 6)}," +
-                            $"{Math.Round(data.Truck.Cabin.X, 2)}," +
-                            $"{Math.Round(data.Truck.Cabin.Y, 2)}," +
-                            $"{Math.Round(data.Truck.Cabin.Z, 2)}," +
-                            $"{Math.Round(data.Truck.Hook.X, 6)}," +
-                            $"{Math.Round(data.Truck.Hook.Y, 6)}," +
-                            $"{Math.Round(data.Truck.Hook.Z, 6)}," +
-                            $"{data.Trailer.Attached}," +
-                            $"\"{data.Trailer.Id}\"," +
-                            $"\"{data.Trailer.Name}\"," +
-                            $"{Math.Round(data.Trailer.Mass, 2)}," +
-                            $"{Math.Round(data.Trailer.Wear, 9)}," +
-                            $"{Math.Round(data.Trailer.Placement.X, 6)}," +
-                            $"{Math.Round(data.Trailer.Placement.Y, 6)}," +
-                            $"{Math.Round(data.Trailer.Placement.Z, 6)}," +
-                            $"{Math.Round(data.Trailer.Placement.Heading, 6)}," +
-                            $"{Math.Round(data.Trailer.Placement.Pitch, 6)}," +
-                            $"{Math.Round(data.Trailer.Placement.Roll, 6)}," +
-                            $"{Math.Round((float)data.Job.Income, 2)}," +
-                            $"\"{data.Job.DeadlineTime}\"," +
-                            $"\"{data.Job.RemainingTime}\"," +
-                            $"\"{data.Job.SourceCity}\"," +
-                            $"\"{data.Job.SourceCompany}\"," +
-                            $"\"{data.Job.DestinationCity}\"," +
-                            $"\"{data.Job.DestinationCompany}\"," +
-                            $"\"{data.Navigation.EstimatedTime}\"," +
-                            $"{data.Navigation.EstimatedDistance}," +
-                            $"{data.Navigation.SpeedLimit}" +
-                            $");";
-                            MySqlCommand insrt = new MySqlCommand(str_insrt, mysqlConn);
-                            MySqlDataReader rs;
-                            mysqlConn.Open();
-                            rs = insrt.ExecuteReader();
-                            mysqlConn.Close();
-                        }
-                        catch (MySqlException ex)
-                        {
-                            lbl_db_status.Text = "Error";
-                            lbl_db_status.ForeColor = System.Drawing.Color.Red;
-
-                            Console.Error.WriteLine("Probar conexion");
                             try
                             {
+                                var str_insrt = $"INSERT INTO raw" +
+                                $"(" +
+                                $"driver_id," +
+                                $"game_time," +
+                                $"game_timescale," +
+                                $"game_nextreststoptime," +
+                                $"truck_id," +
+                                $"truck_make," +
+                                $"truck_model," +
+                                $"truck_speed," +
+                                $"truck_cruisecontrolspeed," +
+                                $"truck_cruisecontrolon," +
+                                $"truck_odometer," +
+                                $"truck_gear," +
+                                $"truck_displayedGear," +
+                                $"truck_engineRpm," +
+                                $"truck_fuel," +
+                                $"truck_fuelCapacity," +
+                                $"truck_fuelAverageConsumption," +
+                                $"truck_fuelWarningOn," +
+                                $"truck_wearEngine," +
+                                $"truck_wearTransmission," +
+                                $"truck_wearCabin," +
+                                $"truck_wearChassis," +
+                                $"truck_wearWheels," +
+                                $"truck_userSteer," +
+                                $"truck_userThrottle," +
+                                $"truck_userBrake," +
+                                $"truck_userClutch," +
+                                $"truck_gameSteer," +
+                                $"truck_gameThrottle," +
+                                $"truck_gameBrake," +
+                                $"truck_gameClutch," +
+                                $"truck_shifterSlot," +
+                                $"truck_engineOn," +
+                                $"truck_electricOn," +
+                                $"truck_wipersOn," +
+                                $"truck_retarderBrake," +
+                                $"truck_retarderStepCount," +
+                                $"truck_parkBrakeOn," +
+                                $"truck_motorBrakeOn," +
+                                $"truck_brakeTemperature," +
+                                $"truck_adblue," +
+                                $"truck_adblueCapacity," +
+                                $"truck_adblueAverageConsumption," +
+                                $"truck_adblueWarningOn," +
+                                $"truck_airPressure," +
+                                $"truck_airPressureWarningOn," +
+                                $"truck_airPressureWarningValue," +
+                                $"truck_airPressureEmergencyOn," +
+                                $"truck_airPressureEmergencyValue," +
+                                $"truck_oilTemperature," +
+                                $"truck_oilPressure," +
+                                $"truck_oilPressureWarningOn," +
+                                $"truck_oilPressureWarningValue," +
+                                $"truck_waterTemperature," +
+                                $"truck_waterTemperatureWarningOn," +
+                                $"truck_waterTemperatureWarningValue," +
+                                $"truck_batteryVoltage," +
+                                $"truck_batteryVoltageWarningOn," +
+                                $"truck_batteryVoltageWarningValue," +
+                                $"truck_lightsDashboardValue," +
+                                $"truck_lightsDashboardOn," +
+                                $"truck_blinkerLeftActive," +
+                                $"truck_blinkerRightActive," +
+                                $"truck_blinkerLeftOn," +
+                                $"truck_blinkerRightOn," +
+                                $"truck_lightsParkingOn," +
+                                $"truck_lightsBeamLowOn," +
+                                $"truck_lightsBeamHighOn," +
+                                $"truck_lightsAuxFrontOn," +
+                                $"truck_lightsAuxRoofOn," +
+                                $"truck_lightsBeaconOn," +
+                                $"truck_lightsBrakeOn," +
+                                $"truck_lightsReverseOn," +
+                                $"truck_placement_x," +
+                                $"truck_placement_y," +
+                                $"truck_placement_z," +
+                                $"truck_placement_heading," +
+                                $"truck_placement_pitch," +
+                                $"truck_placement_roll," +
+                                $"truck_acceleration_x," +
+                                $"truck_acceleration_y," +
+                                $"truck_acceleration_z," +
+                                $"truck_head_x," +
+                                $"truck_head_y," +
+                                $"truck_head_z," +
+                                $"truck_cabin_x," +
+                                $"truck_cabin_y," +
+                                $"truck_cabin_z," +
+                                $"truck_hook_x," +
+                                $"truck_hook_y," +
+                                $"truck_hook_z," +
+                                $"trailer_attached," +
+                                $"trailer_id," +
+                                $"trailer_name," +
+                                $"trailer_mass," +
+                                $"trailer_wear," +
+                                $"trailer_placement_x," +
+                                $"trailer_placement_y," +
+                                $"trailer_placement_z," +
+                                $"trailer_placement_heading," +
+                                $"trailer_placement_pitch," +
+                                $"trailer_placement_roll," +
+                                $"job_income," +
+                                $"job_deadlineTime," +
+                                $"job_remainingTime," +
+                                $"job_sourceCity," +
+                                $"job_sourceCompany," +
+                                $"job_destinationCity," +
+                                $"job_destinationCompany," +
+                                $"estimatedTime," +
+                                $"estimatedDistance," +
+                                $"speedLimit" +
+                                $") VALUES (" +
+
+                                $"\"{txt_DriverId.Text}\"," +
+                                $"\"{data.Game.Time.ToString("yyyy-MM-dd H:mm:ss")}\"," +
+                                $"{data.Game.TimeScale}," +
+                                $"\"{data.Game.NextRestStopTime.ToString("yyyy-MM-dd H:mm:ss")}\"," +
+                                $"\"{data.Truck.Id}\"," +
+                                $"\"{data.Truck.Make}\"," +
+                                $"\"{data.Truck.Model}\"," +
+                                $"{Math.Round(data.Truck.Speed),2}," +
+                                $"{Math.Round(data.Truck.CruiseControlSpeed),2}," +
+                                $"{data.Truck.CruiseControlOn}," +
+                                $"{Math.Round(data.Truck.Odometer, 3)}," +
+                                $"{data.Truck.Gear}," +
+                                $"{data.Truck.DisplayedGear}," +
+                                $"{Math.Round(data.Truck.EngineRpm, 2)}," +
+                                $"{Math.Round(data.Truck.Fuel, 2)}," +
+                                $"{Math.Round(data.Truck.FuelCapacity, 2)}," +
+                                $"{Math.Round(data.Truck.FuelAverageConsumption, 2)}," +
+                                $"{data.Truck.FuelWarningOn}," +
+                                $"{Math.Round(data.Truck.WearEngine, 5)}," +
+                                $"{Math.Round(data.Truck.WearTransmission, 5)}," +
+                                $"{Math.Round(data.Truck.WearCabin, 5)}," +
+                                $"{Math.Round(data.Truck.WearChassis, 5)}," +
+                                $"{Math.Round(data.Truck.WearWheels, 5)}," +
+                                $"{Math.Round(data.Truck.UserSteer, 2)}," +
+                                $"{Math.Round(data.Truck.UserThrottle, 2)}," +
+                                $"{Math.Round(data.Truck.UserBrake, 2)}," +
+                                $"{Math.Round(data.Truck.UserClutch, 2)}," +
+                                $"{Math.Round(data.Truck.GameSteer, 2)}," +
+                                $"{Math.Round(data.Truck.GameThrottle, 4)}," +
+                                $"{Math.Round(data.Truck.GameBrake, 2)}," +
+                                $"{Math.Round(data.Truck.GameClutch, 2)}," +
+                                $"{data.Truck.ShifterSlot}," +
+                                $"{data.Truck.EngineOn}," +
+                                $"{data.Truck.ElectricOn}," +
+                                $"{data.Truck.WipersOn}," +
+                                $"{data.Truck.RetarderBrake}," +
+                                $"{data.Truck.RetarderStepCount}," +
+                                $"{data.Truck.ParkBrakeOn}," +
+                                $"{data.Truck.MotorBrakeOn}," +
+                                $"{Math.Round(data.Truck.BrakeTemperature, 2)}," +
+                                $"{Math.Round(data.Truck.Adblue, 2)}," +
+                                $"{Math.Round(data.Truck.AdblueCapacity, 2)}," +
+                                $"{Math.Round(data.Truck.AdblueAverageConsumption, 2)}," +
+                                $"{data.Truck.AdblueWarningOn}," +
+                                $"{Math.Round(data.Truck.AirPressure, 2)}," +
+                                $"{data.Truck.AirPressureWarningOn}," +
+                                $"{Math.Round(data.Truck.AirPressureWarningValue, 2)}," +
+                                $"{data.Truck.AirPressureEmergencyOn}," +
+                                $"{Math.Round(data.Truck.AirPressureEmergencyValue, 2)}," +
+                                $"{Math.Round(data.Truck.OilTemperature, 2)}," +
+                                $"{Math.Round(data.Truck.OilPressure, 2)}," +
+                                $"{data.Truck.OilPressureWarningOn}," +
+                                $"{Math.Round(data.Truck.OilPressureWarningValue, 2)}," +
+                                $"{Math.Round(data.Truck.WaterTemperature, 2)}," +
+                                $"{data.Truck.WaterTemperatureWarningOn}," +
+                                $"{Math.Round(data.Truck.WaterTemperatureWarningValue, 2)}," +
+                                $"{Math.Round(data.Truck.BatteryVoltage, 2)}," +
+                                $"{data.Truck.BatteryVoltageWarningOn}," +
+                                $"{Math.Round(data.Truck.BatteryVoltageWarningValue, 2)}," +
+                                $"{Math.Round(data.Truck.LightsDashboardValue, 2)}," +
+                                $"{data.Truck.LightsDashboardOn}," +
+                                $"{data.Truck.BlinkerLeftActive}," +
+                                $"{data.Truck.BlinkerRightActive}," +
+                                $"{data.Truck.BlinkerLeftOn}," +
+                                $"{data.Truck.BlinkerRightOn}," +
+                                $"{data.Truck.LightsParkingOn}," +
+                                $"{data.Truck.LightsBeamLowOn}," +
+                                $"{data.Truck.LightsBeamHighOn}," +
+                                $"{data.Truck.LightsAuxFrontOn}," +
+                                $"{data.Truck.LightsAuxRoofOn}," +
+                                $"{data.Truck.LightsBeaconOn}," +
+                                $"{data.Truck.LightsBrakeOn}," +
+                                $"{data.Truck.LightsReverseOn}," +
+                                $"{Math.Round(data.Truck.Placement.X, 4)}," +
+                                $"{Math.Round(data.Truck.Placement.Y, 4)}," +
+                                $"{Math.Round(data.Truck.Placement.Z, 4)}," +
+                                $"{Math.Round(data.Truck.Placement.Heading, 4)}," +
+                                $"{Math.Round(data.Truck.Placement.Pitch, 4)}," +
+                                $"{Math.Round(data.Truck.Placement.Roll, 4)}," +
+                                $"{Math.Round(data.Truck.Acceleration.X, 6)}," +
+                                $"{Math.Round(data.Truck.Acceleration.Y, 6)}," +
+                                $"{Math.Round(data.Truck.Acceleration.Z, 6)}," +
+                                $"{Math.Round(data.Truck.Head.X, 6)}," +
+                                $"{Math.Round(data.Truck.Head.Y, 6)}," +
+                                $"{Math.Round(data.Truck.Head.Z, 6)}," +
+                                $"{Math.Round(data.Truck.Cabin.X, 2)}," +
+                                $"{Math.Round(data.Truck.Cabin.Y, 2)}," +
+                                $"{Math.Round(data.Truck.Cabin.Z, 2)}," +
+                                $"{Math.Round(data.Truck.Hook.X, 6)}," +
+                                $"{Math.Round(data.Truck.Hook.Y, 6)}," +
+                                $"{Math.Round(data.Truck.Hook.Z, 6)}," +
+                                $"{data.Trailer.Attached}," +
+                                $"\"{data.Trailer.Id}\"," +
+                                $"\"{data.Trailer.Name}\"," +
+                                $"{Math.Round(data.Trailer.Mass, 2)}," +
+                                $"{Math.Round(data.Trailer.Wear, 9)}," +
+                                $"{Math.Round(data.Trailer.Placement.X, 6)}," +
+                                $"{Math.Round(data.Trailer.Placement.Y, 6)}," +
+                                $"{Math.Round(data.Trailer.Placement.Z, 6)}," +
+                                $"{Math.Round(data.Trailer.Placement.Heading, 6)}," +
+                                $"{Math.Round(data.Trailer.Placement.Pitch, 6)}," +
+                                $"{Math.Round(data.Trailer.Placement.Roll, 6)}," +
+                                $"{Math.Round((float)data.Job.Income, 2)}," +
+                                $"\"{data.Job.DeadlineTime}\"," +
+                                $"\"{data.Job.RemainingTime}\"," +
+                                $"\"{data.Job.SourceCity}\"," +
+                                $"\"{data.Job.SourceCompany}\"," +
+                                $"\"{data.Job.DestinationCity}\"," +
+                                $"\"{data.Job.DestinationCompany}\"," +
+                                $"\"{data.Navigation.EstimatedTime}\"," +
+                                $"{data.Navigation.EstimatedDistance}," +
+                                $"{data.Navigation.SpeedLimit}" +
+                                $");";
+                                MySqlCommand insrt = new MySqlCommand(str_insrt, mysqlConn);
+                                MySqlDataReader rs;
                                 mysqlConn.Open();
-
+                                rs = insrt.ExecuteReader();
                                 mysqlConn.Close();
-                                Console.WriteLine("ok uwu");
                             }
-                            catch (Exception ex2)
+                            catch (MySqlException ex)
                             {
-                                mysqlConn.Close();
-                                Console.WriteLine("x.x");
-                                Console.WriteLine(ex2);
+                                lbl_db_status.Text = "Error";
+                                lbl_db_status.ForeColor = System.Drawing.Color.Red;
 
+                                Console.Error.WriteLine("Probar conexion");
+                                try
+                                {
+                                    mysqlConn.Open();
+
+                                    mysqlConn.Close();
+                                    Console.WriteLine("ok uwu");
+                                }
+                                catch (Exception ex2)
+                                {
+                                    mysqlConn.Close();
+                                    Console.WriteLine("x.x");
+                                    Console.WriteLine(ex2);
+
+                                }
                             }
                         }
                     }
+                    
                 }
             }
         }
@@ -868,6 +895,55 @@ namespace Funbit.Ets.Telemetry.Server
             Console.WriteLine(e.KeyCode.ToString());
             Console.WriteLine(e.KeyData.ToString() );
             Console.WriteLine(e.KeyValue.ToString() );
+        }
+
+        private void button1_Click(object sender, EventArgs e)
+        {
+            String command = "{method:'motorFR',value:90}\n";
+            Console.WriteLine(command);
+            try
+            {
+                Port.WriteLine(command);
+            }
+            catch (Exception ex)
+            {
+
+            }
+        }
+
+        private void button2_Click(object sender, EventArgs e)
+        {
+            String command = "{method:'motorFR',value:0}\n";
+            Console.WriteLine(command);
+            try
+            {
+                Port.WriteLine(command);
+            }
+            catch (Exception ex)
+            {
+
+            }
+        }
+
+        private void getPosAsiento(object sender, System.Timers.ElapsedEventArgs e)
+        {
+            if (Ets2ProcessHelper.IsEts2Running && Ets2TelemetryDataReader.Instance.IsConnected)
+            {
+                try
+                {
+                    var data = Ets2TelemetryDataReader.Instance.Read();
+                    String command = "{method:'Roll',value:" + (data.Truck.Placement.Roll * 1000) + "}\n";
+                    Console.WriteLine(command);
+                    Port.WriteLine(command);
+                    //command = "{method:'Pitch',value:" + (data.Truck.Placement.Pitch * 1000) + "}\n";
+                    //Port.WriteLine(command);
+                }
+                catch (Exception ex)
+                {
+
+                }
+            }
+
         }
     }
 }
