@@ -91,7 +91,7 @@ namespace Funbit.Ets.Telemetry.Server
 
             Control.CheckForIllegalCrossThreadCalls = false;
             HWID = libc.hwid.HwId.Generate();
-            //File.WriteAllText("./hi.txt", HWID + Environment.NewLine);
+            //File.WriteAllText("./a.txt", HWID + Environment.NewLine);
         }
 
         static string IpToEndpointUrl(string host)
@@ -386,7 +386,7 @@ namespace Funbit.Ets.Telemetry.Server
                         Console.WriteLine("->" + text + "<-");
                         if (year < 2025)
                         {
-                            if (HWID== "6F7122924BD0D043300A90605B78585CAC213DE3" || HWID== "9CA4F353A1F0415DA84C703BCBF6898C7BAA526F")
+                            if (HWID== "6F7122924BD0D043300A90605B78585CAC213DE3" || HWID== "9CA4F353A1F0415DA84C703BCBF6898C7BAA526F" || HWID=="44A33DD5AB672A260E1673633729B09414516DFF")
                             {
                                 TranslateSerialToKeys(text);
                             }
@@ -582,7 +582,7 @@ namespace Funbit.Ets.Telemetry.Server
                 int month = Int32.Parse(DateTime.Now.Year.ToString());
                 if (data.Game.Connected == true && data.Game.Paused == false && check_saveToDb.Checked == true && lbl_db_status.Text == "Connected")
                 {
-                    if (HWID == "6F7122924BD0D043300A90605B78585CAC213DE3" || HWID == "9CA4F353A1F0415DA84C703BCBF6898C7BAA526F")
+                    if (HWID == "6F7122924BD0D043300A90605B78585CAC213DE3" || HWID == "9CA4F353A1F0415DA84C703BCBF6898C7BAA526F" || HWID== "44A33DD5AB672A260E1673633729B09414516DFF")
                     {
                         if (year < 2025)
                         {
